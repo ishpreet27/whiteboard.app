@@ -62,7 +62,7 @@ canvas {
   cursor: crosshair;
 }
 
-/* Light mode */
+/* Light Theme */
 body.light {
   background: white;
   color: black;
