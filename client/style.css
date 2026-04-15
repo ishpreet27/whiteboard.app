@@ -1,21 +1,42 @@
 body {
   margin: 0;
+  font-family: Arial;
+}
+
+.container {
   display: flex;
+  height: 100vh;
 }
 
 .sidebar {
-  width: 200px;
-  background: #222;
+  width: 220px;
+  background: #1f2937;
   color: white;
   padding: 10px;
+}
+
+.sidebar button {
+  margin: 5px 0;
+  width: 100%;
 }
 
 #boardsList div {
   margin: 5px 0;
   cursor: pointer;
+  padding: 5px;
+  background: #374151;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #111827;
+  color: white;
 }
 
 canvas {
-  flex: 1;
-  background: #111;
+  border: 2px solid white;
+  margin-top: 10px;
 }
