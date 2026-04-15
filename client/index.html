@@ -6,16 +6,30 @@
 </head>
 <body>
 
-<div class="sidebar">
-  <h2>Boards</h2>
-  <button onclick="saveBoard()">Save</button>
-  <button onclick="refreshBoards()">Refresh</button>
-  <div id="boardsList"></div>
+<div class="container">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Boards</h2>
+    <button onclick="saveBoard()">Save</button>
+    <button onclick="refreshBoards()">Refresh</button>
+    <div id="boardsList"></div>
+  </div>
+
+  <!-- Main Whiteboard -->
+  <div class="main">
+    <h1>🧠 Whiteboard</h1>
+
+    <div class="toolbar">
+      <button onclick="clearCanvas()">Clear</button>
+    </div>
+
+    <canvas id="canvas"></canvas>
+  </div>
+
 </div>
 
-<canvas id="canvas"></canvas>
-
-<!-- ✅ IMPORTANT -->
+<!-- IMPORTANT -->
 <script src="/socket.io/socket.io.js"></script>
 <script src="script.js"></script>
 
