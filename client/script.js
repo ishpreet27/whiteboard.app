@@ -6,14 +6,14 @@ let currentData = [];
 
 const socket = io();
 
-// IMPORTANT: Dynamic URL (works on Render)
+// ✅ Dynamic URL (important)
 const BASE_URL = window.location.origin;
 
-// Resize canvas
-canvas.width = window.innerWidth;
+// Canvas size
+canvas.width = window.innerWidth - 200;
 canvas.height = window.innerHeight;
 
-// Drawing
+// ================= DRAW =================
 canvas.addEventListener("mousedown", () => drawing = true);
 canvas.addEventListener("mouseup", () => drawing = false);
 canvas.addEventListener("mousemove", draw);
@@ -21,7 +21,7 @@ canvas.addEventListener("mousemove", draw);
 function draw(e) {
   if (!drawing) return;
 
-  const x = e.clientX;
+  const x = e.clientX - 200;
   const y = e.clientY;
 
   ctx.fillRect(x, y, 2, 2);
@@ -48,91 +48,66 @@ socket.on("clear", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// ==========================
-// SAVE BOARD
-// ==========================
+// ================= SAVE =================
 async function saveBoard() {
   const name = prompt("Enter board name:");
-
   if (!name) return;
 
-  try {
-    const res = await fetch(`${BASE_URL}/save`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name,
-        data: currentData
-      })
-    });
+  const res = await fetch(`${BASE_URL}/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      name,
+      data: currentData
+    })
+  });
 
-    const data = await res.json();
-    alert("Board Saved!");
+  await res.json();
+  alert("Saved!");
 
-    loadBoards(); // 🔥 refresh sidebar after save
-  } catch (err) {
-    console.error(err);
-    alert("Save failed!");
-  }
+  loadBoards(); // refresh sidebar
 }
 
-// ==========================
-// LOAD ALL BOARDS
-// ==========================
+// ================= LOAD LIST =================
 async function loadBoards() {
-  try {
-    const res = await fetch(`${BASE_URL}/boards`);
-    const boards = await res.json();
+  const res = await fetch(`${BASE_URL}/boards`);
+  const boards = await res.json();
 
-    const list = document.getElementById("boardsList");
-    list.innerHTML = "";
+  const list = document.getElementById("boardsList");
+  list.innerHTML = "";
 
-    boards.forEach(board => {
-      const item = document.createElement("div");
-      item.innerText = board.name;
-      item.style.cursor = "pointer";
+  boards.forEach(board => {
+    const div = document.createElement("div");
+    div.innerText = board.name;
 
-      item.onclick = () => loadBoard(board._id);
+    div.onclick = () => loadBoard(board._id);
 
-      list.appendChild(item);
-    });
-  } catch (err) {
-    console.error(err);
-  }
+    list.appendChild(div);
+  });
 }
 
-// ==========================
-// LOAD SINGLE BOARD
-// ==========================
+// ================= LOAD ONE =================
 async function loadBoard(id) {
-  try {
-    const res = await fetch(`${BASE_URL}/load/${id}`);
-    const board = await res.json();
+  const res = await fetch(`${BASE_URL}/load/${id}`);
+  const board = await res.json();
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    board.data.forEach(point => {
-      ctx.fillRect(point.x, point.y, 2, 2);
-    });
+  board.data.forEach(p => {
+    ctx.fillRect(p.x, p.y, 2, 2);
+  });
 
-    currentData = board.data;
-  } catch (err) {
-    console.error(err);
-  }
+  currentData = board.data;
 }
 
-// ==========================
-// REFRESH BUTTON FIX
-// ==========================
+// ================= REFRESH =================
 function refreshBoards() {
   loadBoards();
 }
 
-// ==========================
-// AUTO LOAD ON PAGE LOAD
-// ==========================
+// ================= AUTO LOAD =================
 window.onload = () => {
-  loadBoards();  // 🔥 this fixes your issue
+  loadBoards();
 };
