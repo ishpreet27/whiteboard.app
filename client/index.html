@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Whiteboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h3>📁 Boards</h3>
+    <button onclick="newBoard()">➕ New</button>
+    <button onclick="loadBoards()">🔄 Refresh</button>
+    <div id="boardsList"></div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <h1>🧠 Whiteboard</h1>
+
+    <div class="toolbar">
+      <select id="tool">
+        <option value="pen">Pen</option>
+        <option value="brush">Brush</option>
+        <option value="highlighter">Highlighter</option>
+        <option value="eraser">Eraser</option>
+      </select>
+
+      <input type="color" id="color">
+      <input type="range" id="size" min="1" max="20" value="5">
+
+      <button onclick="clearBoard()">Clear</button>
+      <button onclick="saveBoard()">Save</button>
+      <button onclick="downloadImage()">Download</button>
+      <button onclick="toggleTheme()">Toggle Theme</button>
+    </div>
+
+    <canvas id="board"></canvas>
+
+  </div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script src="script.js"></script>
+
+</body>
+</html>
