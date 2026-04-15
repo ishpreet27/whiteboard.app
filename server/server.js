@@ -3,30 +3,38 @@ const http = require("http");
 const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// ✅ ROOT ROUTE (fixes "Cannot GET /")
+// ✅ Serve frontend (IMPORTANT)
+app.use(express.static(path.join(__dirname, "../client")));
+
+// ✅ Root route (loads your UI)
 app.get("/", (req, res) => {
-  res.send("🚀 Whiteboard Backend is Running Successfully!");
+  res.sendFile(path.join(__dirname, "../client/index.html"));
 });
 
 const server = http.createServer(app);
+
+// ✅ PORT for Render
 const PORT = process.env.PORT || 5001;
 
-// ✅ Socket.io setup
+// Socket.io
 const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-// ✅ MongoDB (USE ENV VARIABLE for Render)
+// ✅ MongoDB Atlas connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
   .catch(err => console.log("❌ MongoDB Error:", err));
 
-// ✅ Schema
+// Schema
 const BoardSchema = new mongoose.Schema({
   name: { type: String, default: "Untitled Board" },
   data: Array,
@@ -35,7 +43,7 @@ const BoardSchema = new mongoose.Schema({
 
 const Board = mongoose.model("Board", BoardSchema);
 
-// ✅ WebSocket events
+// WebSocket
 io.on("connection", (socket) => {
   console.log("🟢 User connected");
 
@@ -52,7 +60,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// ✅ APIs
+// APIs
 app.post("/save", async (req, res) => {
   try {
     const { name, data } = req.body;
@@ -105,7 +113,7 @@ app.delete("/delete/:id", async (req, res) => {
   }
 });
 
-// ✅ IMPORTANT: Listen on 0.0.0.0 for Render
+// ✅ Start server (Render fix)
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
