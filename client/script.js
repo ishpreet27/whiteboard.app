@@ -1,130 +1,120 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-const socket = io();
-const BASE_URL = window.location.origin;
-
 let drawing = false;
-let currentData = [];
+let currentBoardId = null;
 
-let color = document.getElementById("colorPicker").value;
-let size = document.getElementById("size").value;
-
-// Fullscreen canvas
 function resizeCanvas() {
-  canvas.width = canvas.clientWidth;
-  canvas.height = window.innerHeight - 120;
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
 }
 resizeCanvas();
-window.onresize = resizeCanvas;
+window.addEventListener("resize", resizeCanvas);
 
-// ================= DRAW =================
+// Drawing
 canvas.addEventListener("mousedown", () => drawing = true);
-canvas.addEventListener("mouseup", () => drawing = false);
+canvas.addEventListener("mouseup", () => {
+  drawing = false;
+  ctx.beginPath();
+});
+
 canvas.addEventListener("mousemove", draw);
 
 function draw(e) {
   if (!drawing) return;
 
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const tool = document.getElementById("tool").value;
+  const color = document.getElementById("color").value;
+  const size = document.getElementById("size").value;
 
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, size, size);
+  ctx.lineWidth = size;
+  ctx.lineCap = "round";
 
-  const point = { x, y, color, size };
-  currentData.push(point);
+  if (tool === "eraser") {
+    ctx.strokeStyle = "#ffffff";
+  } else {
+    ctx.strokeStyle = color;
+  }
 
-  socket.emit("draw", point);
+  ctx.lineTo(e.offsetX, e.offsetY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(e.offsetX, e.offsetY);
 }
 
-// Receive draw
-socket.on("draw", (data) => {
-  ctx.fillStyle = data.color;
-  ctx.fillRect(data.x, data.y, data.size, data.size);
-});
-
-// ================= CLEAR =================
+// Clear
 function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  currentData = [];
-  socket.emit("clear");
 }
 
-socket.on("clear", () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
-
-// ================= SAVE =================
+// Save
 async function saveBoard() {
   const name = prompt("Enter board name:");
   if (!name) return;
 
-  await fetch(`${BASE_URL}/save`, {
+  const data = canvas.toDataURL();
+
+  await fetch("/save", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ name, data: currentData })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, data })
   });
 
-  alert("Saved!");
   loadBoards();
 }
 
-// ================= LOAD LIST =================
+// Load boards list
 async function loadBoards() {
-  const res = await fetch(`${BASE_URL}/boards`);
+  const res = await fetch("/boards");
   const boards = await res.json();
 
   const list = document.getElementById("boardsList");
   list.innerHTML = "";
 
-  boards.forEach(board => {
-    const div = document.createElement("div");
-    div.innerText = board.name;
-    div.onclick = () => loadBoard(board._id);
-    list.appendChild(div);
+  boards.forEach(b => {
+    const btn = document.createElement("button");
+    btn.innerText = b.name;
+
+    btn.onclick = () => loadBoard(b._id);
+
+    list.appendChild(btn);
   });
 }
 
-// ================= LOAD BOARD =================
+// Load board
 async function loadBoard(id) {
-  const res = await fetch(`${BASE_URL}/load/${id}`);
+  const res = await fetch(`/load/${id}`);
   const board = await res.json();
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const img = new Image();
+  img.src = board.data;
 
-  board.data.forEach(p => {
-    ctx.fillStyle = p.color || "#000";
-    ctx.fillRect(p.x, p.y, p.size || 2, p.size || 2);
-  });
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
 
-  currentData = board.data;
+  currentBoardId = id;
 }
 
-// ================= REFRESH =================
-function refreshBoards() {
-  loadBoards();
+// New board
+function newBoard() {
+  clearCanvas();
+  currentBoardId = null;
 }
 
-// ================= DOWNLOAD =================
-function downloadCanvas() {
+// Download
+function download() {
   const link = document.createElement("a");
   link.download = "whiteboard.png";
   link.href = canvas.toDataURL();
   link.click();
 }
 
-// ================= THEME =================
+// Theme toggle
 function toggleTheme() {
   document.body.classList.toggle("light");
 }
 
-// ================= EVENTS =================
-document.getElementById("colorPicker").onchange = e => color = e.target.value;
-document.getElementById("size").onchange = e => size = e.target.value;
-
-// ================= AUTO LOAD =================
-window.onload = () => loadBoards();
+// Initial load
+loadBoards();
