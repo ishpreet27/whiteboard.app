@@ -64,44 +64,51 @@ function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-// Save board (instant sidebar update)
+// ✅ FIXED SAVE (MAIN CHANGE)
 async function saveBoard() {
   const name = prompt("Enter board name:");
   if (!name) return;
 
   const data = canvas.toDataURL();
 
-  const res = await fetch("/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, data })
-  });
+  try {
+    await fetch("/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, data })
+    });
 
-  const newBoard = await res.json();
-  addBoardToSidebar(newBoard);
+    // 🔥 reload sidebar from DB
+    await loadBoards();
+
+    alert("Saved successfully!");
+  } catch (err) {
+    console.error(err);
+    alert("Save failed");
+  }
 }
 
 // Load boards
 async function loadBoards() {
-  const res = await fetch("/boards");
-  const boards = await res.json();
+  try {
+    const res = await fetch("/boards");
+    const boards = await res.json();
 
-  const list = document.getElementById("boardsList");
-  list.innerHTML = "";
+    const list = document.getElementById("boardsList");
+    list.innerHTML = "";
 
-  boards.forEach(addBoardToSidebar);
-}
+    boards.forEach(board => {
+      const btn = document.createElement("button");
+      btn.innerText = board.name;
 
-// Add board button
-function addBoardToSidebar(board) {
-  const list = document.getElementById("boardsList");
+      btn.onclick = () => loadBoard(board._id);
 
-  const btn = document.createElement("button");
-  btn.innerText = board.name;
+      list.appendChild(btn);
+    });
 
-  btn.onclick = () => loadBoard(board._id);
-
-  list.prepend(btn);
+  } catch (err) {
+    console.error("Error loading boards:", err);
+  }
 }
 
 // Load board
