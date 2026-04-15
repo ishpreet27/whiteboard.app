@@ -1,15 +1,22 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-let drawing = false;
-let currentData = [];
-
 const socket = io();
 const BASE_URL = window.location.origin;
 
-// Canvas size
-canvas.width = window.innerWidth - 220;
-canvas.height = window.innerHeight - 100;
+let drawing = false;
+let currentData = [];
+
+let color = document.getElementById("colorPicker").value;
+let size = document.getElementById("size").value;
+
+// Fullscreen canvas
+function resizeCanvas() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = window.innerHeight - 120;
+}
+resizeCanvas();
+window.onresize = resizeCanvas;
 
 // ================= DRAW =================
 canvas.addEventListener("mousedown", () => drawing = true);
@@ -23,9 +30,10 @@ function draw(e) {
   const x = e.clientX - rect.left;
   const y = e.clientY - rect.top;
 
-  ctx.fillRect(x, y, 2, 2);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, size, size);
 
-  const point = { x, y };
+  const point = { x, y, color, size };
   currentData.push(point);
 
   socket.emit("draw", point);
@@ -33,7 +41,8 @@ function draw(e) {
 
 // Receive draw
 socket.on("draw", (data) => {
-  ctx.fillRect(data.x, data.y, 2, 2);
+  ctx.fillStyle = data.color;
+  ctx.fillRect(data.x, data.y, data.size, data.size);
 });
 
 // ================= CLEAR =================
@@ -52,64 +61,47 @@ async function saveBoard() {
   const name = prompt("Enter board name:");
   if (!name) return;
 
-  try {
-    await fetch(`${BASE_URL}/save`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name,
-        data: currentData
-      })
-    });
+  await fetch(`${BASE_URL}/save`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ name, data: currentData })
+  });
 
-    alert("Saved!");
-    loadBoards();
-  } catch (err) {
-    console.error(err);
-    alert("Save failed");
-  }
+  alert("Saved!");
+  loadBoards();
 }
 
 // ================= LOAD LIST =================
 async function loadBoards() {
-  try {
-    const res = await fetch(`${BASE_URL}/boards`);
-    const boards = await res.json();
+  const res = await fetch(`${BASE_URL}/boards`);
+  const boards = await res.json();
 
-    const list = document.getElementById("boardsList");
-    list.innerHTML = "";
+  const list = document.getElementById("boardsList");
+  list.innerHTML = "";
 
-    boards.forEach(board => {
-      const div = document.createElement("div");
-      div.innerText = board.name;
-
-      div.onclick = () => loadBoard(board._id);
-
-      list.appendChild(div);
-    });
-  } catch (err) {
-    console.error(err);
-  }
+  boards.forEach(board => {
+    const div = document.createElement("div");
+    div.innerText = board.name;
+    div.onclick = () => loadBoard(board._id);
+    list.appendChild(div);
+  });
 }
 
 // ================= LOAD BOARD =================
 async function loadBoard(id) {
-  try {
-    const res = await fetch(`${BASE_URL}/load/${id}`);
-    const board = await res.json();
+  const res = await fetch(`${BASE_URL}/load/${id}`);
+  const board = await res.json();
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    board.data.forEach(p => {
-      ctx.fillRect(p.x, p.y, 2, 2);
-    });
+  board.data.forEach(p => {
+    ctx.fillStyle = p.color || "#000";
+    ctx.fillRect(p.x, p.y, p.size || 2, p.size || 2);
+  });
 
-    currentData = board.data;
-  } catch (err) {
-    console.error(err);
-  }
+  currentData = board.data;
 }
 
 // ================= REFRESH =================
@@ -117,7 +109,22 @@ function refreshBoards() {
   loadBoards();
 }
 
+// ================= DOWNLOAD =================
+function downloadCanvas() {
+  const link = document.createElement("a");
+  link.download = "whiteboard.png";
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+// ================= THEME =================
+function toggleTheme() {
+  document.body.classList.toggle("light");
+}
+
+// ================= EVENTS =================
+document.getElementById("colorPicker").onchange = e => color = e.target.value;
+document.getElementById("size").onchange = e => size = e.target.value;
+
 // ================= AUTO LOAD =================
-window.onload = () => {
-  loadBoards();
-};
+window.onload = () => loadBoards();
