@@ -4,6 +4,7 @@ const ctx = canvas.getContext("2d");
 let drawing = false;
 let currentBoardId = null;
 
+// Resize canvas
 function resizeCanvas() {
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
@@ -17,7 +18,6 @@ canvas.addEventListener("mouseup", () => {
   drawing = false;
   ctx.beginPath();
 });
-
 canvas.addEventListener("mousemove", draw);
 
 function draw(e) {
@@ -27,13 +27,30 @@ function draw(e) {
   const color = document.getElementById("color").value;
   const size = document.getElementById("size").value;
 
-  ctx.lineWidth = size;
   ctx.lineCap = "round";
+
+  if (tool === "pen") {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size;
+    ctx.globalAlpha = 1;
+  }
+
+  if (tool === "brush") {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 2;
+    ctx.globalAlpha = 1;
+  }
+
+  if (tool === "highlighter") {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 4;
+    ctx.globalAlpha = 0.3;
+  }
 
   if (tool === "eraser") {
     ctx.strokeStyle = "#ffffff";
-  } else {
-    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 3;
+    ctx.globalAlpha = 1;
   }
 
   ctx.lineTo(e.offsetX, e.offsetY);
@@ -47,23 +64,24 @@ function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-// Save
+// Save board (instant sidebar update)
 async function saveBoard() {
   const name = prompt("Enter board name:");
   if (!name) return;
 
   const data = canvas.toDataURL();
 
-  await fetch("/save", {
+  const res = await fetch("/save", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, data })
   });
 
-  loadBoards();
+  const newBoard = await res.json();
+  addBoardToSidebar(newBoard);
 }
 
-// Load boards list
+// Load boards
 async function loadBoards() {
   const res = await fetch("/boards");
   const boards = await res.json();
@@ -71,14 +89,19 @@ async function loadBoards() {
   const list = document.getElementById("boardsList");
   list.innerHTML = "";
 
-  boards.forEach(b => {
-    const btn = document.createElement("button");
-    btn.innerText = b.name;
+  boards.forEach(addBoardToSidebar);
+}
 
-    btn.onclick = () => loadBoard(b._id);
+// Add board button
+function addBoardToSidebar(board) {
+  const list = document.getElementById("boardsList");
 
-    list.appendChild(btn);
-  });
+  const btn = document.createElement("button");
+  btn.innerText = board.name;
+
+  btn.onclick = () => loadBoard(board._id);
+
+  list.prepend(btn);
 }
 
 // Load board
@@ -116,5 +139,5 @@ function toggleTheme() {
   document.body.classList.toggle("light");
 }
 
-// Initial load
+// Init
 loadBoards();
