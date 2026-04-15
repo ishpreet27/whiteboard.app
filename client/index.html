@@ -10,26 +10,37 @@
 
   <!-- Sidebar -->
   <div class="sidebar">
-    <h2>Boards</h2>
+    <h2>📁 Boards</h2>
     <button onclick="saveBoard()">Save</button>
     <button onclick="refreshBoards()">Refresh</button>
     <div id="boardsList"></div>
   </div>
 
-  <!-- Main Whiteboard -->
+  <!-- Main -->
   <div class="main">
+
     <h1>🧠 Whiteboard</h1>
 
     <div class="toolbar">
+      <select id="tool">
+        <option value="pen">Pen</option>
+      </select>
+
+      <input type="color" id="colorPicker" value="#000000">
+      <input type="range" id="size" min="1" max="10" value="2">
+
       <button onclick="clearCanvas()">Clear</button>
+      <button onclick="saveBoard()">Save</button>
+      <button onclick="downloadCanvas()">Download</button>
+      <button onclick="toggleTheme()">Toggle Theme</button>
     </div>
 
     <canvas id="canvas"></canvas>
+
   </div>
 
 </div>
 
-<!-- IMPORTANT -->
 <script src="/socket.io/socket.io.js"></script>
 <script src="script.js"></script>
 
