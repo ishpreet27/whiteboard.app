@@ -1,62 +1,79 @@
-const socket = io("http://localhost:5001");
-
-const canvas = document.getElementById("board");
+const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth * 0.7;
-canvas.height = window.innerHeight * 0.7;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
 let drawing = false;
-let history = [];
-let currentBoardId = null;
+let data = [];
 
-let tool = "pen";
-let color = "#000000";
-let size = 5;
+// ✅ FIX: use deployed URL automatically
+const BASE_URL = window.location.origin;
 
-document.getElementById("tool").onchange = e => tool = e.target.value;
-document.getElementById("color").onchange = e => color = e.target.value;
-document.getElementById("size").onchange = e => size = e.target.value;
+// ✅ FIX: socket for deployed app
+const socket = io();
 
-canvas.addEventListener("mousedown", () => drawing = true);
-canvas.addEventListener("mouseup", () => drawing = false);
-canvas.addEventListener("mousemove", draw);
+// Draw function
+function drawLine(x0, y0, x1, y1, emit) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+  ctx.closePath();
 
-function draw(e) {
+  if (!emit) return;
+
+  const w = canvas.width;
+  const h = canvas.height;
+
+  socket.emit("draw", {
+    x0: x0 / w,
+    y0: y0 / h,
+    x1: x1 / w,
+    y1: y1 / h
+  });
+
+  data.push({ x0, y0, x1, y1 });
+}
+
+// Mouse events
+let current = { x: 0, y: 0 };
+
+canvas.addEventListener("mousedown", (e) => {
+  drawing = true;
+  current.x = e.clientX;
+  current.y = e.clientY;
+});
+
+canvas.addEventListener("mouseup", () => {
+  drawing = false;
+});
+
+canvas.addEventListener("mousemove", (e) => {
   if (!drawing) return;
 
-  const data = { x: e.offsetX, y: e.offsetY, tool, color, size };
+  drawLine(current.x, current.y, e.clientX, e.clientY, true);
+  current.x = e.clientX;
+  current.y = e.clientY;
+});
 
-  drawCanvas(data);
-  socket.emit("draw", data);
-  history.push(data);
-}
+// Socket receive
+socket.on("draw", (data) => {
+  const w = canvas.width;
+  const h = canvas.height;
 
-function drawCanvas({ x, y, tool, color, size }) {
-  if (tool === "eraser") {
-    ctx.clearRect(x - 10, y - 10, 20, 20);
-    return;
-  }
+  drawLine(
+    data.x0 * w,
+    data.y0 * h,
+    data.x1 * w,
+    data.y1 * h
+  );
+});
 
-  ctx.beginPath();
-
-  if (tool === "pen") ctx.arc(x, y, size, 0, Math.PI * 2);
-  if (tool === "brush") ctx.arc(x, y, size * 2, 0, Math.PI * 2);
-  if (tool === "highlighter") {
-    ctx.fillStyle = color + "55";
-    ctx.arc(x, y, size * 3, 0, Math.PI * 2);
-  } else {
-    ctx.fillStyle = color;
-  }
-
-  ctx.fill();
-}
-
-socket.on("draw", drawCanvas);
-
+// Clear canvas
 function clearBoard() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  history = [];
+  data = [];
   socket.emit("clear");
 }
 
@@ -64,112 +81,72 @@ socket.on("clear", () => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 });
 
-// NEW BOARD
-function newBoard() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  history = [];
-  currentBoardId = null;
-}
-
-// SAVE
+// =======================
+// ✅ SAVE BOARD
+// =======================
 async function saveBoard() {
   const name = prompt("Enter board name:");
-  const res = await fetch("http://localhost:5001/save", {
+  if (!name) return;
+
+  await fetch(`${BASE_URL}/save`, {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ name, data: history })
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ name, data })
   });
 
-  const data = await res.json();
-  currentBoardId = data._id;
+  alert("✅ Board Saved!");
   loadBoards();
 }
 
-// LOAD LIST
+// =======================
+// ✅ LOAD ALL BOARDS
+// =======================
 async function loadBoards() {
-  const res = await fetch("http://localhost:5001/boards");
+  const res = await fetch(`${BASE_URL}/boards`);
   const boards = await res.json();
 
   const list = document.getElementById("boardsList");
   list.innerHTML = "";
 
-  boards.forEach(b => {
-    const div = document.createElement("div");
-    div.className = "board-item";
-
-    const name = document.createElement("span");
-    name.innerText = b.name;
-    name.onclick = () => loadBoardById(b._id);
-
-    const renameBtn = document.createElement("button");
-    renameBtn.innerText = "✏️";
-    renameBtn.onclick = (e) => {
-      e.stopPropagation();
-      renameBoard(b._id);
-    };
-
-    const deleteBtn = document.createElement("button");
-    deleteBtn.innerText = "🗑";
-    deleteBtn.onclick = (e) => {
-      e.stopPropagation();
-      deleteBoard(b._id);
-    };
-
-    div.appendChild(name);
-    div.appendChild(renameBtn);
-    div.appendChild(deleteBtn);
-
-    list.appendChild(div);
+  boards.forEach((b) => {
+    const item = document.createElement("li");
+    item.innerHTML = `
+      ${b.name}
+      <button onclick="loadBoard('${b._id}')">Load</button>
+      <button onclick="deleteBoard('${b._id}')">Delete</button>
+    `;
+    list.appendChild(item);
   });
 }
 
-// LOAD BOARD
-async function loadBoardById(id) {
-  const res = await fetch(`http://localhost:5001/load/${id}`);
+// =======================
+// ✅ LOAD ONE BOARD
+// =======================
+async function loadBoard(id) {
+  const res = await fetch(`${BASE_URL}/load/${id}`);
   const board = await res.json();
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  if (board.data) {
-    board.data.forEach(drawCanvas);
-  }
-}
-
-// RENAME
-async function renameBoard(id) {
-  const name = prompt("New name:");
-  await fetch(`http://localhost:5001/rename/${id}`, {
-    method: "PUT",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({ name })
+  board.data.forEach((line) => {
+    drawLine(line.x0, line.y0, line.x1, line.y1);
   });
 
-  loadBoards();
+  data = board.data;
 }
 
-// DELETE
+// =======================
+// ✅ DELETE BOARD
+// =======================
 async function deleteBoard(id) {
-  if (!confirm("Delete this board?")) return;
-
-  await fetch(`http://localhost:5001/delete/${id}`, {
+  await fetch(`${BASE_URL}/delete/${id}`, {
     method: "DELETE"
   });
 
   loadBoards();
 }
 
-// DOWNLOAD
-function downloadImage() {
-  const link = document.createElement("a");
-  link.download = "whiteboard.png";
-  link.href = canvas.toDataURL();
-  link.click();
-}
-
-// THEME
-function toggleTheme() {
-  document.body.classList.toggle("light");
-}
-
-// INIT
-loadBoards();
+// Load boards on start
+window.onload = loadBoards;
