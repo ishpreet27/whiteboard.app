@@ -4,10 +4,18 @@ const ctx = canvas.getContext("2d");
 let drawing = false;
 let currentBoardId = null;
 
-// Resize canvas
+// Resize canvas WITHOUT losing drawing
 function resizeCanvas() {
+  const temp = canvas.toDataURL();
+
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
+
+  const img = new Image();
+  img.src = temp;
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
@@ -64,7 +72,7 @@ function clearCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-// ✅ FIXED SAVE (MAIN CHANGE)
+// ✅ FIXED SAVE (IMPORTANT)
 async function saveBoard() {
   const name = prompt("Enter board name:");
   if (!name) return;
@@ -72,13 +80,18 @@ async function saveBoard() {
   const data = canvas.toDataURL();
 
   try {
-    await fetch("/save", {
+    const res = await fetch("/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, data })
+      body: JSON.stringify({
+        name,
+        data // store string directly
+      })
     });
 
-    // 🔥 reload sidebar from DB
+    const result = await res.json();
+
+    // 🔥 Update sidebar instantly
     await loadBoards();
 
     alert("Saved successfully!");
@@ -100,6 +113,9 @@ async function loadBoards() {
     boards.forEach(board => {
       const btn = document.createElement("button");
       btn.innerText = board.name;
+      btn.style.display = "block";
+      btn.style.width = "100%";
+      btn.style.marginBottom = "5px";
 
       btn.onclick = () => loadBoard(board._id);
 
@@ -113,18 +129,23 @@ async function loadBoards() {
 
 // Load board
 async function loadBoard(id) {
-  const res = await fetch(`/load/${id}`);
-  const board = await res.json();
+  try {
+    const res = await fetch(`/load/${id}`);
+    const board = await res.json();
 
-  const img = new Image();
-  img.src = board.data;
+    const img = new Image();
+    img.src = board.data; // string
 
-  img.onload = () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  };
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
 
-  currentBoardId = id;
+    currentBoardId = id;
+
+  } catch (err) {
+    console.error("Load error:", err);
+  }
 }
 
 // New board
@@ -147,4 +168,6 @@ function toggleTheme() {
 }
 
 // Init
-loadBoards();
+window.onload = () => {
+  loadBoards();
+};
